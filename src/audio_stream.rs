@@ -1,6 +1,6 @@
 use crate::uni;
 
-pub static AUDIO_STREAM_VTABLE: uni::mpf_audio_stream_vtable_t = uni::mpf_audio_stream_vtable_t {
+pub static VTABLE: uni::mpf_audio_stream_vtable_t = uni::mpf_audio_stream_vtable_t {
     destroy: Some(stream_destroy),
     open_rx: Some(stream_open),
     close_rx: Some(stream_close),

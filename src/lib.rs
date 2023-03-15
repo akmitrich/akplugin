@@ -1,3 +1,5 @@
+pub mod engine;
+
 pub mod uni {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -11,6 +13,28 @@ pub mod uni {
     pub const TRUE: apt_bool_t = 1;
 }
 
+#[no_mangle]
+pub static mut mrcp_plugin_version: uni::mrcp_plugin_version_t = uni::mrcp_plugin_version_t {
+    major: uni::PLUGIN_MAJOR_VERSION as i32,
+    minor: uni::PLUGIN_MINOR_VERSION as i32,
+    patch: uni::PLUGIN_PATCH_VERSION as i32,
+    is_dev: 0,
+};
+
+#[no_mangle]
+pub extern "C" fn mrcp_plugin_create(pool: *mut uni::apr_pool_t) -> *mut uni::mrcp_engine_t {
+    unsafe {
+        // We create the engine initially with its object pointer set
+        // to null. It will be initialized in `engine_open`.
+        uni::mrcp_engine_create(
+            uni::MRCP_RECOGNIZER_RESOURCE as _,
+            std::ptr::null_mut(),
+            &engine::ENGINE_VTABLE as *const _,
+            pool,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -19,5 +43,15 @@ mod tests {
     fn it_works() {
         assert_eq!(0, uni::FALSE);
         assert_eq!(1, uni::TRUE);
+    }
+
+    #[test]
+    fn test_version() {
+        unsafe {
+            println!(
+                "MAJOR {}\nMINOR {}\nPATCH {}\n",
+                mrcp_plugin_version.major, mrcp_plugin_version.minor, mrcp_plugin_version.patch
+            );
+        }
     }
 }

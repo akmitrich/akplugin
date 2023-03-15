@@ -1,3 +1,4 @@
+pub mod audio_stream;
 pub mod engine;
 
 pub mod uni {
@@ -24,10 +25,10 @@ pub static mut mrcp_plugin_version: uni::mrcp_plugin_version_t = uni::mrcp_plugi
 #[no_mangle]
 pub extern "C" fn mrcp_plugin_create(pool: *mut uni::apr_pool_t) -> *mut uni::mrcp_engine_t {
     unsafe {
-        // We create the engine initially with its object pointer set
+        // Engines's object pointer set
         // to null. It will be initialized in `engine_open`.
         uni::mrcp_engine_create(
-            uni::MRCP_RECOGNIZER_RESOURCE as _,
+            uni::MRCP_SYNTHESIZER_RESOURCE as _,
             std::ptr::null_mut(),
             &engine::ENGINE_VTABLE as *const _,
             pool,

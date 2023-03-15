@@ -1,5 +1,6 @@
 pub mod audio_stream;
 pub mod engine;
+pub mod resource_channel;
 
 pub mod uni {
     #![allow(non_upper_case_globals)]

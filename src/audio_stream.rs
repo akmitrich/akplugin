@@ -1,4 +1,4 @@
-use crate::uni;
+use crate::{log, uni};
 
 pub static VTABLE: uni::mpf_audio_stream_vtable_t = uni::mpf_audio_stream_vtable_t {
     destroy: Some(stream_destroy),
@@ -12,6 +12,7 @@ pub static VTABLE: uni::mpf_audio_stream_vtable_t = uni::mpf_audio_stream_vtable
 };
 
 pub unsafe extern "C" fn stream_destroy(_stream: *mut uni::mpf_audio_stream_t) -> uni::apt_bool_t {
+    log(&format!("Destroy audio stream {:p}", _stream));
     uni::TRUE
 }
 
@@ -19,10 +20,12 @@ pub unsafe extern "C" fn stream_open(
     _stream: *mut uni::mpf_audio_stream_t,
     _codec: *mut uni::mpf_codec_t,
 ) -> uni::apt_bool_t {
+    log(&format!("Open audio stream: {:p}", _stream));
     uni::TRUE
 }
 
 pub unsafe extern "C" fn stream_close(_stream: *mut uni::mpf_audio_stream_t) -> uni::apt_bool_t {
+    log(&format!("Close audio stream: {:p}", _stream));
     uni::TRUE
 }
 
@@ -30,6 +33,7 @@ pub unsafe extern "C" fn stream_read(
     _stream: *mut uni::mpf_audio_stream_t,
     _frame: *mut uni::mpf_frame_t,
 ) -> uni::apt_bool_t {
+    log(&format!("Read audio stream {:p}", _stream));
     uni::TRUE
 }
 
@@ -38,4 +42,8 @@ pub unsafe extern "C" fn trace(
     _direction: uni::mpf_stream_direction_e,
     _output: *mut uni::apt_text_stream_t,
 ) {
+    log(&format!(
+        "Trace audio stream {:p} in direction {}",
+        _stream, _direction
+    ))
 }

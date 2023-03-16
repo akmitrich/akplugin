@@ -25,7 +25,7 @@ pub static mut mrcp_plugin_version: uni::mrcp_plugin_version_t = uni::mrcp_plugi
 
 #[no_mangle]
 pub extern "C" fn mrcp_plugin_create(pool: *mut uni::apr_pool_t) -> *mut uni::mrcp_engine_t {
-    eprintln!("[AK-Plugin] Start the engine.");
+    log("Start the engine.");
     unsafe {
         // Engines's object pointer set
         // to null. It will be initialized in `engine_open`.

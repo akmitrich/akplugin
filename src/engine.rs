@@ -14,13 +14,14 @@ unsafe extern "C" fn engine_destroy(_engine: *mut uni::mrcp_engine_t) -> uni::ap
 }
 
 unsafe extern "C" fn engine_open(engine: *mut uni::mrcp_engine_t) -> uni::apt_bool_t {
-    let config = uni::mrcp_engine_config_get(engine);
-    log(&format!("Open Engine. Get config: {:p}", (*config).params));
+    let _config = uni::mrcp_engine_config_get(engine);
+    log(&format!("Open Engine: {:p}", engine));
     (*engine).obj = Box::into_raw(Box::new(AkEngine::new())) as *mut _;
     helper_engine_open_respond(engine, uni::TRUE)
 }
 
 unsafe extern "C" fn engine_close(engine: *mut uni::mrcp_engine_t) -> uni::apt_bool_t {
+    log(&format!("Close engine. {:p}", engine));
     helper_engine_close_respond(engine)
 }
 
@@ -45,6 +46,7 @@ unsafe extern "C" fn engine_create_channel(
         termination,
         pool,
     );
+    log(&format!("Create channel. {:p}", channel));
     (*channel_ptr).lock().unwrap().channel = NonNull::new(channel).unwrap();
     channel
 }

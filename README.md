@@ -5,4 +5,5 @@ Assumption: build environment is RPM-based distro with UniMRCP packages `unimrcp
 Development environment is Fedora.
 
 ## Current state of work
-All plugin functions are stubs. 
+### Bug at virtual function `stream_read`
+In the scenario "synth" server calls `stream_read` infinitely.

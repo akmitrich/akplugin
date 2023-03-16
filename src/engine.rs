@@ -1,6 +1,6 @@
 use std::ptr::NonNull;
 
-use crate::{resource_channel::AkChannel, uni};
+use crate::{log, resource_channel::AkChannel, uni};
 
 pub static ENGINE_VTABLE: uni::mrcp_engine_method_vtable_t = uni::mrcp_engine_method_vtable_t {
     destroy: Some(engine_destroy),
@@ -9,11 +9,13 @@ pub static ENGINE_VTABLE: uni::mrcp_engine_method_vtable_t = uni::mrcp_engine_me
     create_channel: Some(engine_create_channel),
 };
 unsafe extern "C" fn engine_destroy(_engine: *mut uni::mrcp_engine_t) -> uni::apt_bool_t {
+    log("Engine destroy.");
     uni::TRUE
 }
 
 unsafe extern "C" fn engine_open(engine: *mut uni::mrcp_engine_t) -> uni::apt_bool_t {
-    let _config = uni::mrcp_engine_config_get(engine);
+    let config = uni::mrcp_engine_config_get(engine);
+    log(&format!("Open Engine. Get config: {:p}", (*config).params));
     (*engine).obj = Box::into_raw(Box::new(AkEngine::new())) as *mut _;
     helper_engine_open_respond(engine, uni::TRUE)
 }

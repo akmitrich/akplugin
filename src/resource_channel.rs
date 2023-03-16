@@ -19,14 +19,12 @@ pub unsafe extern "C" fn channel_destroy(
     uni::TRUE
 }
 
-pub unsafe extern "C" fn channel_open(
-    _channel: *mut uni::mrcp_engine_channel_t,
-) -> uni::apt_bool_t {
-    uni::TRUE
+pub unsafe extern "C" fn channel_open(channel: *mut uni::mrcp_engine_channel_t) -> uni::apt_bool_t {
+    helper_engine_channel_open_respond(channel, uni::TRUE)
 }
 
-unsafe extern "C" fn channel_close(_channel: *mut uni::mrcp_engine_channel_t) -> uni::apt_bool_t {
-    uni::TRUE
+unsafe extern "C" fn channel_close(channel: *mut uni::mrcp_engine_channel_t) -> uni::apt_bool_t {
+    helper_engine_channel_close_respond(channel)
 }
 
 unsafe extern "C" fn channel_process_request(
@@ -51,4 +49,17 @@ impl AkChannel {
         };
         Arc::new(Mutex::new(channel))
     }
+}
+
+unsafe fn helper_engine_channel_open_respond(
+    channel: *mut uni::mrcp_engine_channel_t,
+    status: uni::apt_bool_t,
+) -> uni::apt_bool_t {
+    (*(*channel).event_vtable).on_open.unwrap()(channel, status)
+}
+
+unsafe fn helper_engine_channel_close_respond(
+    channel: *mut uni::mrcp_engine_channel_t,
+) -> uni::apt_bool_t {
+    (*(*channel).event_vtable).on_close.unwrap()(channel)
 }

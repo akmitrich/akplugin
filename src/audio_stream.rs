@@ -33,20 +33,23 @@ pub unsafe extern "C" fn stream_close(_stream: *mut uni::mpf_audio_stream_t) -> 
 
 pub unsafe extern "C" fn stream_read(
     stream: *mut uni::mpf_audio_stream_t,
-    _frame: *mut uni::mpf_frame_t,
+    frame: *mut uni::mpf_frame_t,
 ) -> uni::apt_bool_t {
-    log(&format!("Read audio stream {:p}", stream));
+    log(&format!(
+        "Read audio stream {:p}. Frame size is {}",
+        stream,
+        (*frame).codec_frame.size
+    ));
     let ak_channel = (*stream).obj as *mut Arc<Mutex<AkChannel>>;
+    // ATTENTION: this is the way to dead lock:
     let mut channel_lock = (*ak_channel).lock().unwrap();
     if let Some(msg) = channel_lock.speak_msg {
+        // the problem with dead lock will come from here^
         channel_lock.speak_msg = None;
         let pool = (*msg).pool;
-        log(&format!("Speak msg is {:p}, pool is {:p}", msg, pool));
         let complete_msg = uni::mrcp_event_create(msg, uni::SYNTHESIZER_SPEAK_COMPLETE as _, pool);
-        log(&format!("Complete msg is {:p}", complete_msg));
         if !complete_msg.is_null() {
-            (*complete_msg).start_line.request_state = uni::MRCP_REQUEST_STATE_COMPLETE;
-            log(&format!("ak_channel state {:?}", (*ak_channel).as_ref()));
+            helper_complete_msg_prepare(complete_msg);
             channel_lock.engine_channel_message_send(complete_msg);
             log(&format!("Complete msg successfully sent."));
         }
@@ -63,4 +66,39 @@ pub unsafe extern "C" fn trace(
         "Trace audio stream {:p} in direction {}",
         _stream, _direction
     ))
+}
+
+unsafe fn helper_complete_msg_prepare(complete_msg: *mut uni::mrcp_message_t) {
+    (*complete_msg).start_line.request_state = uni::MRCP_REQUEST_STATE_COMPLETE;
+    let pool = (*complete_msg).pool;
+    let h_accessor: *mut uni::mrcp_header_accessor_t =
+        &mut (*complete_msg).header.resource_header_accessor;
+    let header = helper_message_header_allocate(h_accessor, pool);
+    log(&format!("Prepare header {:p}", header));
+    if !header.is_null() {
+        (*header).completion_cause = uni::SYNTHESIZER_COMPLETION_CAUSE_NORMAL;
+        uni::mrcp_resource_header_property_add(
+            complete_msg,
+            uni::SYNTHESIZER_HEADER_COMPLETION_CAUSE as _,
+        );
+    }
+}
+
+unsafe fn helper_message_header_allocate(
+    accessor: *mut uni::mrcp_header_accessor_t,
+    pool: *mut uni::apr_pool_t,
+) -> *mut uni::mrcp_synth_header_t {
+    let data_ptr = (*accessor).data;
+    if !data_ptr.is_null() {
+        return data_ptr as _;
+    }
+    let v_table_ptr = (*accessor).vtable;
+    if v_table_ptr.is_null() {
+        return std::ptr::null_mut() as _;
+    }
+    let allocate = (*v_table_ptr).allocate;
+    if allocate.is_none() {
+        return std::ptr::null_mut() as _;
+    }
+    allocate.unwrap()(accessor, pool) as _
 }

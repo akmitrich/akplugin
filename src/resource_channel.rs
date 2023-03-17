@@ -35,6 +35,8 @@ unsafe extern "C" fn channel_process_request(
     request: *mut uni::mrcp_message_t,
 ) -> uni::apt_bool_t {
     let ak_channel = (*channel).method_obj as *mut Arc<Mutex<AkChannel>>;
+    let pool = (*request).pool;
+    let resp = uni::mrcp_response_create(request, pool);
     let method_id = unsafe { (*request).start_line.method_id as u32 };
     let cmd = match method_id {
         uni::SYNTHESIZER_SET_PARAMS => "SYNTHESIZER_SET_PARAMS",
@@ -56,6 +58,10 @@ unsafe extern "C" fn channel_process_request(
         "Request {cmd} processing. Channel is {:p}, request {:p}",
         channel, request
     ));
+    (*ak_channel)
+        .lock()
+        .unwrap()
+        .engine_channel_message_send(resp);
     uni::TRUE
 }
 

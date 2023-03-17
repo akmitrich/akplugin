@@ -5,5 +5,8 @@ Assumption: build environment is RPM-based distro with UniMRCP packages `unimrcp
 Development environment is Fedora.
 
 ## Current state of work
-### Bug at virtual function `stream_read`
-In the scenario "synth" server calls `stream_read` infinitely.
+~~### Bug at virtual function `stream_read`~~
+~~In the scenario "synth" server calls `stream_read` infinitely.~~
+
+### Plugin works correctly
+But does not do any actual synthesize. Client gets empty file.

@@ -31,14 +31,19 @@ unsafe extern "C" fn channel_close(channel: *mut uni::mrcp_engine_channel_t) -> 
 }
 
 unsafe extern "C" fn channel_process_request(
-    _channel: *mut uni::mrcp_engine_channel_t,
+    channel: *mut uni::mrcp_engine_channel_t,
     request: *mut uni::mrcp_message_t,
 ) -> uni::apt_bool_t {
+    let ak_channel = (*channel).method_obj as *mut Arc<Mutex<AkChannel>>;
     let method_id = unsafe { (*request).start_line.method_id as u32 };
     let cmd = match method_id {
         uni::SYNTHESIZER_SET_PARAMS => "SYNTHESIZER_SET_PARAMS",
         uni::SYNTHESIZER_GET_PARAMS => "SYNTHESIZER_GET_PARAMS",
-        uni::SYNTHESIZER_SPEAK => "SYNTHESIZER_SPEAK",
+        uni::SYNTHESIZER_SPEAK => {
+            (*ak_channel).lock().unwrap().speak_msg = Some(request);
+            (*ak_channel).lock().unwrap().log();
+            "SYNTHESIZER_SPEAK"
+        }
         uni::SYNTHESIZER_STOP => "SYNTHESIZER_STOP",
         uni::SYNTHESIZER_PAUSE => "SYNTHESIZER_PAUSE",
         uni::SYNTHESIZER_RESUME => "SYNTHESIZER_RESUME",
@@ -48,15 +53,17 @@ unsafe extern "C" fn channel_process_request(
         _ => "Other",
     };
     log(&format!(
-        "Request {cmd} processing. {:p} {:p}",
-        _channel, request
+        "Request {cmd} processing. Channel is {:p}, request {:p}",
+        channel, request
     ));
     uni::TRUE
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct AkChannel {
     pub channel: NonNull<uni::mrcp_engine_channel_t>,
+    pub speak_msg: Option<*mut uni::mrcp_message_t>,
     pub detector: Option<NonNull<uni::mpf_activity_detector_t>>,
 }
 
@@ -65,9 +72,29 @@ impl AkChannel {
         let uni_detector = unsafe { uni::mpf_activity_detector_create(pool) };
         let channel = Self {
             channel: NonNull::dangling(),
+            speak_msg: None,
             detector: NonNull::new(uni_detector),
         };
         Arc::new(Mutex::new(channel))
+    }
+}
+
+impl AkChannel {
+    pub(crate) unsafe fn engine_channel_message_send(&self, msg: *mut uni::mrcp_message_t) {
+        let channel_ptr = self.channel.as_ptr();
+        log(&format!(
+            "Send message {:p} via channel {:p}",
+            msg, channel_ptr
+        ));
+        (*(*channel_ptr).event_vtable).on_message.unwrap()(channel_ptr, msg);
+    }
+
+    pub(crate) fn log(&self) {
+        log(&format!(
+            "AkChannel on {:p}, speak_msg {:?}",
+            self.channel.as_ptr(),
+            self.speak_msg
+        ))
     }
 }
 

@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use std::{collections::HashMap, ptr::NonNull};
 
 use crate::{log, resource_channel::AkChannel, uni};
 
@@ -52,11 +52,28 @@ unsafe extern "C" fn engine_create_channel(
 }
 
 #[repr(C)]
-pub struct AkEngine;
+pub struct AkEngine {
+    pub yandex_iam_token: String,
+}
 
 impl AkEngine {
     pub fn new() -> Self {
-        Self
+        Self {
+            yandex_iam_token: Self::get_iam_token(),
+        }
+    }
+
+    fn get_iam_token() -> String {
+        const IAM_TOKEN_KEY: &str = "iamToken";
+        let client = reqwest::blocking::Client::new();
+        let req = client
+            .post("https://iam.api.cloud.yandex.net/iam/v1/tokens")
+            .query(&[("yandexPassportOauthToken", crate::secret::YANDEX_KEY)]);
+        let res = req.send().expect("need IAM-token but network fails");
+        let json: HashMap<String, String> = res
+            .json()
+            .expect("need IAM-token but server responds without JSON");
+        String::from(&json[IAM_TOKEN_KEY])
     }
 }
 

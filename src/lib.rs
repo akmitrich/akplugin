@@ -2,6 +2,10 @@ pub mod audio_stream;
 pub mod engine;
 pub mod resource_channel;
 
+pub(crate) mod secret {
+    include!(".secret");
+}
+
 pub mod uni {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]

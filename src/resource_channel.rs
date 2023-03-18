@@ -42,8 +42,7 @@ unsafe extern "C" fn channel_process_request(
         uni::SYNTHESIZER_SET_PARAMS => "SYNTHESIZER_SET_PARAMS",
         uni::SYNTHESIZER_GET_PARAMS => "SYNTHESIZER_GET_PARAMS",
         uni::SYNTHESIZER_SPEAK => {
-            (*ak_channel).lock().unwrap().speak_msg = Some(request);
-            (*ak_channel).lock().unwrap().log();
+            (*ak_channel).lock().unwrap().speak(request);
             "SYNTHESIZER_SPEAK"
         }
         uni::SYNTHESIZER_STOP => "SYNTHESIZER_STOP",
@@ -70,6 +69,7 @@ unsafe extern "C" fn channel_process_request(
 pub struct AkChannel {
     pub channel: NonNull<uni::mrcp_engine_channel_t>,
     pub speak_msg: Option<*mut uni::mrcp_message_t>,
+    pub speak_bytes: Option<Vec<u8>>,
     pub detector: Option<NonNull<uni::mpf_activity_detector_t>>,
 }
 
@@ -79,9 +79,16 @@ impl AkChannel {
         let channel = Self {
             channel: NonNull::dangling(),
             speak_msg: None,
+            speak_bytes: None,
             detector: NonNull::new(uni_detector),
         };
         Arc::new(Mutex::new(channel))
+    }
+
+    pub fn speak(&mut self, request: *mut uni::mrcp_message_t) {
+        self.speak_msg = Some(request);
+        self.speak_bytes = self.get_synthesize();
+        self.log();
     }
 }
 
@@ -101,6 +108,10 @@ impl AkChannel {
             self.channel.as_ptr(),
             self.speak_msg
         ))
+    }
+
+    fn get_synthesize(&self) -> Option<Vec<u8>> {
+        None
     }
 }
 

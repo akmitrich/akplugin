@@ -2,6 +2,10 @@
 Note: The work in progress.
 
 Assumption: build environment is RPM-based distro with UniMRCP packages `unimrcp-client`, `unimrcp-client-devel`, `unimrcp-server`, `unimrcp-server-devel` already installed.
+```bash
+$ sudo yum install unimrcp-client unimrcp-client-devel unimrcp-server unimrcp-server-devel
+```
+
 Development environment is Fedora.
 
 # Build instructions (Fedora)

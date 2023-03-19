@@ -7,6 +7,8 @@ Development environment is Fedora.
 # Build instructions (Fedora)
 There must be Rust in the environment: <https://www.rust-lang.org/learn/get-started>.
 
+Plugin depends on `clang` and `openssl` development kits. So please ensures they are available in building environment.
+
 Build the plugin with:
 ```bash
 cargo build --release

@@ -42,6 +42,6 @@ pub(crate) static YANDEX_KEY: &str = "Your Yandex Passport OAUTH Token";
 pub(crate) static FOLDER_ID: &str = "Your Yandex SpeechKit folder ID";
 ```
 
-Be careful, your secrets are baked into the code of the plugin. So DO NOT use it in a production environment.
+Be careful, your secrets are baked into the code of the plugin. So DO NOT distribute it as a compiled file.
 
 Plugin accepts plain text from `demo-synth`, sends the plain text to Yandex SpeechKit, all the received LPCM-stream is directed to the CLIENT. So you get your speech synthesized in `unimrcp/var` directory as pcm-file.

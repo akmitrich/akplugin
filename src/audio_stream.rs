@@ -67,7 +67,6 @@ pub unsafe extern "C" fn stream_read(
             let bytes_to_read = min(speech_len - have_read_bytes, frame_size);
             let src = &speech[have_read_bytes] as *const u8;
             unsafe { std::ptr::copy_nonoverlapping(src, frame_buffer, bytes_to_read) }
-            let f_buf = std::slice::from_raw_parts(frame_buffer, frame_size);
             drop(channel_lock);
             let mut channel_lock = (*ak_channel).lock().unwrap();
             channel_lock.have_read_bytes += bytes_to_read;

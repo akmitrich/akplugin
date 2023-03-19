@@ -31,5 +31,17 @@ On start the server loads the plugin, you may see in logs something like this
 ~~### Bug at virtual function `stream_read`~~
 ~~In the scenario "synth" server calls `stream_read` infinitely.~~
 
-### Plugin works correctly
-But does not do any actual synthesize. Client gets empty file.
+~~### Plugin works correctly~~
+~~But does not do any actual synthesize. Client gets empty file.~~
+
+### Plugin works with DEMO-SYNTH scenario
+To be functional plugin needs to be built with `.secret` file in `src` directory.
+File `.secret` must be:
+```rust
+pub(crate) static YANDEX_KEY: &str = "Your Yandex Passport OAUTH Token";
+pub(crate) static FOLDER_ID: &str = "Your Yandex SpeechKit folder ID";
+```
+
+Be careful, your secrets are baked into the code of the plugin. So DO NOT use it in a production environment.
+
+Plugin accepts plain text from `demo-synth`, sends the plain text to Yandex SpeechKit, all the received LPCM-stream is directed to the CLIENT. So you get your speech synthesized in `unimrcp/var` directory as pcm-file.

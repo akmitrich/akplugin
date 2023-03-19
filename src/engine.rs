@@ -71,12 +71,15 @@ impl AkEngine {
         let req = client
             .post("https://iam.api.cloud.yandex.net/iam/v1/tokens")
             .query(&[("yandexPassportOauthToken", crate::secret::YANDEX_KEY)]);
-        // let res = req.send().expect("need IAM-token but network fails");
-        // let json: HashMap<String, String> = res
-        //     .json()
-        //     .expect("need IAM-token but server responds without JSON");
-        log(&format!("Send request for IAM-token: {:#?}", req));
-        String::from(IAM_TOKEN_KEY) //&json[IAM_TOKEN_KEY])
+        let res = req.send().expect("need IAM-token but network fails");
+        let json: HashMap<String, String> = res
+            .json()
+            .expect("need IAM-token but server responds without JSON");
+        log(&format!(
+            "Responds with IAM-token: {:#?}",
+            &json[IAM_TOKEN_KEY]
+        ));
+        String::from(&json[IAM_TOKEN_KEY])
     }
 }
 

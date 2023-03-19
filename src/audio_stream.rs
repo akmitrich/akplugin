@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    cmp::min,
+    sync::{Arc, Mutex},
+};
 
 use crate::{log, resource_channel::AkChannel, uni};
 
@@ -44,18 +47,38 @@ pub unsafe extern "C" fn stream_read(
     // ATTENTION: this is the way to dead lock:
     let mut channel_lock = (*ak_channel).lock().unwrap();
     log(&format!(
-        "The channel {:p} has speak_bytes {:?}",
-        ak_channel, channel_lock.speak_bytes
+        //TODO: remove this log
+        "The channel {:p} has speak_bytes {:?}, have read {} of them.",
+        ak_channel,
+        (channel_lock.speak_bytes.as_ref())
+            .map(|x| x.len())
+            .unwrap_or_default(),
+        channel_lock.have_read_bytes
     ));
     if let Some(msg) = channel_lock.speak_msg {
         // the problem with dead lock is because of this^
-        channel_lock.speak_msg = None;
-        let pool = (*msg).pool;
-        let complete_msg = uni::mrcp_event_create(msg, uni::SYNTHESIZER_SPEAK_COMPLETE as _, pool);
-        if !complete_msg.is_null() {
-            helper_complete_msg_prepare(complete_msg);
-            channel_lock.engine_channel_message_send(complete_msg);
-            log(&format!("Complete msg successfully sent."));
+        let speak_bytes = &channel_lock.speak_bytes;
+        if let Some(speech) = speak_bytes {
+            (*frame).type_ |= uni::MEDIA_FRAME_TYPE_AUDIO as i32;
+            let speech_len = speech.len();
+            let frame_size = (*frame).codec_frame.size;
+            let frame_buffer = (*frame).codec_frame.buffer as *mut u8;
+            let have_read_bytes = channel_lock.have_read_bytes;
+            let bytes_to_read = min(speech_len - have_read_bytes, frame_size);
+            let src = &speech[have_read_bytes] as *const u8;
+            unsafe { std::ptr::copy_nonoverlapping(src, frame_buffer, bytes_to_read) }
+            let f_buf = std::slice::from_raw_parts(frame_buffer, frame_size);
+            drop(channel_lock);
+            let mut channel_lock = (*ak_channel).lock().unwrap();
+            channel_lock.have_read_bytes += bytes_to_read;
+            if channel_lock.have_read_bytes == speech_len {
+                channel_lock.speak_bytes = None;
+                channel_lock.have_read_bytes = 0;
+            }
+        } else {
+            channel_lock.speak_msg = None;
+            drop(channel_lock);
+            helper_send_complete_msg(ak_channel, msg);
         }
     }
     uni::TRUE
@@ -72,13 +95,28 @@ pub unsafe extern "C" fn trace(
     ))
 }
 
+unsafe fn helper_send_complete_msg(
+    ak_channel: *mut Arc<Mutex<AkChannel>>,
+    msg: *mut uni::mrcp_message_t,
+) {
+    let complete_msg =
+        uni::mrcp_event_create(msg, uni::SYNTHESIZER_SPEAK_COMPLETE as _, (*msg).pool);
+    if !complete_msg.is_null() {
+        helper_complete_msg_prepare(complete_msg);
+        (*ak_channel)
+            .lock()
+            .unwrap()
+            .engine_channel_message_send(complete_msg);
+        log(&format!("Complete msg successfully sent."));
+    }
+}
+
 unsafe fn helper_complete_msg_prepare(complete_msg: *mut uni::mrcp_message_t) {
     (*complete_msg).start_line.request_state = uni::MRCP_REQUEST_STATE_COMPLETE;
     let pool = (*complete_msg).pool;
     let h_accessor: *mut uni::mrcp_header_accessor_t =
         &mut (*complete_msg).header.resource_header_accessor;
     let header = helper_message_header_allocate(h_accessor, pool);
-    log(&format!("Prepare header {:p}", header));
     if !header.is_null() {
         (*header).completion_cause = uni::SYNTHESIZER_COMPLETION_CAUSE_NORMAL;
         uni::mrcp_resource_header_property_add(

@@ -107,9 +107,9 @@ impl AkChannel {
         self.log();
         unsafe {
             (*response).start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS as _;
-            self.engine_channel_message_send(response);
+            //            self.engine_channel_message_send(response);
         }
-        uni::TRUE
+        uni::FALSE
     }
 
     pub fn reset_speak(&mut self) {
@@ -145,7 +145,7 @@ impl AkChannel {
         let data = HashMap::from([
             ("text", text),
             ("lang", "ru-RU"),
-            ("voice", "fillip"),
+            ("voice", "filipp"),
             ("folderId", crate::secret::FOLDER_ID),
             ("format", "lpcm"),
             ("sampleRateHertz", "48000"),
@@ -158,15 +158,20 @@ impl AkChannel {
                 format!("Bearer {iam_token}"),
             )
             .query(&data);
-        let res_str = format!("Request = {:#?}", req);
-        log(&res_str);
-        let res = res_str.as_bytes(); // = req.send()?;
+        let res = req
+            .send()
+            .expect("ask for synthezised speech but network fails");
 
-        // println!("Reponse = {:#?}", res);
-        // if !res.status().is_success() {
-        //     return Err(format!("Response status is {:?}", res.status()).into());
-        // }
-        Some(Vec::from(res))
+        if !res.status().is_success() {
+            log(&format!(
+                "ERROR: Response status is {:?}\n{:#?}",
+                res.status(),
+                res.json::<HashMap<String, String>>()
+            ));
+            None
+        } else {
+            Some(res.bytes().expect("Yandex respond with no bytes").to_vec())
+        }
     }
 }
 

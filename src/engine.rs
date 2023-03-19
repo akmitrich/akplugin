@@ -47,6 +47,7 @@ unsafe extern "C" fn engine_create_channel(
         pool,
     );
     log(&format!("Create channel. {:p}", channel));
+    (*channel_ptr).lock().unwrap().engine = NonNull::new(engine).unwrap();
     (*channel_ptr).lock().unwrap().channel = NonNull::new(channel).unwrap();
     channel
 }
@@ -63,17 +64,19 @@ impl AkEngine {
         }
     }
 
+    #[allow(unreachable_code)]
     fn get_iam_token() -> String {
         const IAM_TOKEN_KEY: &str = "iamToken";
         let client = reqwest::blocking::Client::new();
         let req = client
             .post("https://iam.api.cloud.yandex.net/iam/v1/tokens")
             .query(&[("yandexPassportOauthToken", crate::secret::YANDEX_KEY)]);
-        let res = req.send().expect("need IAM-token but network fails");
-        let json: HashMap<String, String> = res
-            .json()
-            .expect("need IAM-token but server responds without JSON");
-        String::from(&json[IAM_TOKEN_KEY])
+        // let res = req.send().expect("need IAM-token but network fails");
+        // let json: HashMap<String, String> = res
+        //     .json()
+        //     .expect("need IAM-token but server responds without JSON");
+        log(&format!("Send request for IAM-token: {:#?}", req));
+        String::from(IAM_TOKEN_KEY) //&json[IAM_TOKEN_KEY])
     }
 }
 

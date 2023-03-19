@@ -1,9 +1,14 @@
 use std::{
+    collections::HashMap,
     ptr::NonNull,
     sync::{Arc, Mutex},
 };
 
-use crate::{log, uni};
+use crate::{
+    engine::AkEngine,
+    log, msg_body,
+    uni::{self, MRCP_REQUEST_STATE_INPROGRESS},
+};
 
 pub const VTABLE: uni::mrcp_engine_channel_method_vtable_t =
     uni::mrcp_engine_channel_method_vtable_t {
@@ -34,15 +39,16 @@ unsafe extern "C" fn channel_process_request(
     channel: *mut uni::mrcp_engine_channel_t,
     request: *mut uni::mrcp_message_t,
 ) -> uni::apt_bool_t {
+    let mut processed = uni::FALSE;
     let ak_channel = (*channel).method_obj as *mut Arc<Mutex<AkChannel>>;
     let pool = (*request).pool;
-    let resp = uni::mrcp_response_create(request, pool);
+    let response = uni::mrcp_response_create(request, pool);
     let method_id = unsafe { (*request).start_line.method_id as u32 };
     let cmd = match method_id {
         uni::SYNTHESIZER_SET_PARAMS => "SYNTHESIZER_SET_PARAMS",
         uni::SYNTHESIZER_GET_PARAMS => "SYNTHESIZER_GET_PARAMS",
         uni::SYNTHESIZER_SPEAK => {
-            (*ak_channel).lock().unwrap().speak(request);
+            processed = (*ak_channel).lock().unwrap().speak(request, response);
             "SYNTHESIZER_SPEAK"
         }
         uni::SYNTHESIZER_STOP => "SYNTHESIZER_STOP",
@@ -57,38 +63,59 @@ unsafe extern "C" fn channel_process_request(
         "Request {cmd} processing. Channel is {:p}, request {:p}",
         channel, request
     ));
-    (*ak_channel)
-        .lock()
-        .unwrap()
-        .engine_channel_message_send(resp);
+    if processed == uni::FALSE {
+        (*ak_channel)
+            .lock()
+            .unwrap()
+            .engine_channel_message_send(response);
+    }
     uni::TRUE
 }
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct AkChannel {
+    pub engine: NonNull<uni::mrcp_engine_t>,
     pub channel: NonNull<uni::mrcp_engine_channel_t>,
     pub speak_msg: Option<*mut uni::mrcp_message_t>,
     pub speak_bytes: Option<Vec<u8>>,
-    pub detector: Option<NonNull<uni::mpf_activity_detector_t>>,
+    pub have_read_bytes: usize,
 }
 
 impl AkChannel {
-    pub fn new(pool: *mut uni::apr_pool_t) -> Arc<Mutex<Self>> {
-        let uni_detector = unsafe { uni::mpf_activity_detector_create(pool) };
+    pub fn new(_pool: *mut uni::apr_pool_t) -> Arc<Mutex<Self>> {
         let channel = Self {
+            engine: NonNull::dangling(),
             channel: NonNull::dangling(),
             speak_msg: None,
             speak_bytes: None,
-            detector: NonNull::new(uni_detector),
+            have_read_bytes: 0,
         };
         Arc::new(Mutex::new(channel))
     }
 
-    pub fn speak(&mut self, request: *mut uni::mrcp_message_t) {
+    pub fn speak(
+        &mut self,
+        request: *mut uni::mrcp_message_t,
+        response: *mut uni::mrcp_message_t,
+    ) -> uni::apt_bool_t {
         self.speak_msg = Some(request);
-        self.speak_bytes = self.get_synthesize();
+        let text = msg_body(request);
+        log(&format!("Speak the text: {:?}", text));
+        self.speak_bytes = self.perform_synthesize(text);
+        self.have_read_bytes = 0;
         self.log();
+        unsafe {
+            (*response).start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS as _;
+            self.engine_channel_message_send(response);
+        }
+        uni::TRUE
+    }
+
+    pub fn reset_speak(&mut self) {
+        self.speak_msg = None;
+        self.speak_bytes = None;
+        self.have_read_bytes = 0;
     }
 }
 
@@ -96,8 +123,10 @@ impl AkChannel {
     pub(crate) unsafe fn engine_channel_message_send(&self, msg: *mut uni::mrcp_message_t) {
         let channel_ptr = self.channel.as_ptr();
         log(&format!(
-            "Send message {:p} via channel {:p}",
-            msg, channel_ptr
+            "Send message {:p} {:?} via channel {:p}",
+            msg,
+            msg_body(msg),
+            channel_ptr
         ));
         (*(*channel_ptr).event_vtable).on_message.unwrap()(channel_ptr, msg);
     }
@@ -110,8 +139,34 @@ impl AkChannel {
         ))
     }
 
-    fn get_synthesize(&self) -> Option<Vec<u8>> {
-        None
+    fn perform_synthesize(&self, text: &str) -> Option<Vec<u8>> {
+        let ak_engine = unsafe { (*self.engine.as_ptr()).obj as *mut AkEngine };
+        let iam_token = unsafe { (*ak_engine).yandex_iam_token.as_str() };
+        let data = HashMap::from([
+            ("text", text),
+            ("lang", "ru-RU"),
+            ("voice", "fillip"),
+            ("folderId", crate::secret::FOLDER_ID),
+            ("format", "lpcm"),
+            ("sampleRateHertz", "48000"),
+        ]);
+        let client = reqwest::blocking::Client::new();
+        let req = client
+            .post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize")
+            .header(
+                reqwest::header::AUTHORIZATION,
+                format!("Bearer {iam_token}"),
+            )
+            .query(&data);
+        let res_str = format!("Request = {:#?}", req);
+        log(&res_str);
+        let res = res_str.as_bytes(); // = req.send()?;
+
+        // println!("Reponse = {:#?}", res);
+        // if !res.status().is_success() {
+        //     return Err(format!("Response status is {:?}", res.status()).into());
+        // }
+        Some(Vec::from(res))
     }
 }
 

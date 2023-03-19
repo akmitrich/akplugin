@@ -46,6 +46,14 @@ pub(crate) fn log(s: &str) {
     eprintln!("[AK-Plugin] {s}");
 }
 
+pub(crate) fn msg_body<'a>(msg: *mut uni::mrcp_message_t) -> &'a str {
+    unsafe {
+        let raw_body = (*msg).body;
+        let body_buf = std::slice::from_raw_parts(raw_body.buf as *const u8, raw_body.length);
+        std::str::from_utf8_unchecked(body_buf)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

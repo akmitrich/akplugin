@@ -43,8 +43,12 @@ pub unsafe extern "C" fn stream_read(
     let ak_channel = (*stream).obj as *mut Arc<Mutex<AkChannel>>;
     // ATTENTION: this is the way to dead lock:
     let mut channel_lock = (*ak_channel).lock().unwrap();
+    log(&format!(
+        "The channel {:p} has speak_bytes {:?}",
+        ak_channel, channel_lock.speak_bytes
+    ));
     if let Some(msg) = channel_lock.speak_msg {
-        // the problem with dead lock will come from here^
+        // the problem with dead lock is because of this^
         channel_lock.speak_msg = None;
         let pool = (*msg).pool;
         let complete_msg = uni::mrcp_event_create(msg, uni::SYNTHESIZER_SPEAK_COMPLETE as _, pool);

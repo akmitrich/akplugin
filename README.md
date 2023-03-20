@@ -5,7 +5,7 @@ Assumption: build environment is RPM-based distro with UniMRCP packages `unimrcp
 ```bash
 $ sudo yum install unimrcp-client unimrcp-client-devel unimrcp-server unimrcp-server-devel
 ```
-Datails of instaaltion are available at https://www.unimrcp.org/manuals/html/RPMInstallationManual.html.
+Datails of instalation are available at <https://www.unimrcp.org/manuals/html/RPMInstallationManual.html>.
 
 Development environment is Fedora.
 

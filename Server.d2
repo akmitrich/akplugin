@@ -1,0 +1,38 @@
+client: Клиент
+server: uniMRCP-Сервер
+server.shape: cloud
+
+plugin1: Плагин синтеза речи {
+  Engine: mrcp_engine_t Engine {
+    shape: class
+    +destroy(): apt_bool_t
+    +open(): apt_bool_t
+    +close(): apt_bool_t
+    +create_channel(apr_pool_t* pool): mrcp_engine_channel_t*
+  }
+  Channel: mrcp_engine_channel_t Channel {
+    shape: class
+    +destroy(): apt_bool_t
+    +open(): apt_bool_t
+    +close(): apt_bool_t
+    +process_request(mrcp_message_t* request): apt_bool_t
+  }
+  Stream: mpf_audio_stream_t Stream {
+    shape: class
+    destroy(): apt_bool_t
+    open_rx(mpf_codec_t* codec): apt_bool_t
+    close_rx(): apt_bool_t
+    read_frame(mpf_frame_t* frame): apt_bool_t
+  }
+}
+
+service: Сервис синтеза речи
+
+client -> server: SPEAK text
+server -> plugin1.Engine: create_channel()
+server -> plugin1.Channel: channel_process_request(SPEAK)
+server -> plugin1.Stream: stream_read()
+plugin1.Stream -> server: MRCP_FRAME
+server -> client: AUDIO
+plugin1.Channel -> service: TEXT
+service -> plugin1.Channel: Audio Stream

@@ -1,0 +1,27 @@
+Порядок работы при синтезе речи: {
+  shape: sequence_diagram
+  client: Клиент
+  server: uniMRCP-сервер
+  plugin: Плагин синтеза речи
+  service: Сервис синтеза речи
+
+  client -> server: SPEAK text
+  server -> plugin: create_channel(apr_pool_t* pool)
+  plugin -> service: Отправка данных для синтеза речи
+  service -> plugin: Подтверждение и первые аудио-данные
+  plugin -> server: Сообщение REQUEST_STATE_INPROGRESS
+  server -> client: Сообщение REQUEST_STATE_INPROGRESS
+  server -> plugin: read_frame(mpf_frame_t* frame)
+  plugin -> server: аудио-данные для фрейма
+  server -> client: аудио
+  service -> plugin: Ещё асинхронно доставленные данные
+  server -> plugin: read_frame(mpf_frame_t* frame)
+  plugin -> server: аудио-данные для фрейма
+  server -> client: аудио
+  service -> plugin: Конец синтезированной речи
+  server -> plugin: read_frame(mpf_frame_t* frame)
+  plugin -> server: аудио-данные для фрейма
+  plugin -> server: Сообщение REQUEST_STATE_COMPLETE
+  server -> client: аудио
+  server -> client: SPEAK-COMPLETE
+}

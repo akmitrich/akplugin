@@ -38,23 +38,9 @@ pub unsafe extern "C" fn stream_read(
     stream: *mut uni::mpf_audio_stream_t,
     frame: *mut uni::mpf_frame_t,
 ) -> uni::apt_bool_t {
-    log(&format!(
-        "Read audio stream {:p}. Frame size is {}",
-        stream,
-        (*frame).codec_frame.size
-    ));
     let ak_channel = (*stream).obj as *mut Arc<Mutex<AkChannel>>;
     // ATTENTION: this is the way to dead lock:
     let mut channel_lock = (*ak_channel).lock().unwrap();
-    log(&format!(
-        //TODO: remove this log
-        "The channel {:p} has speak_bytes {:?}, have read {} of them.",
-        ak_channel,
-        (channel_lock.speak_bytes.as_ref())
-            .map(|x| x.len())
-            .unwrap_or_default(),
-        channel_lock.have_read_bytes
-    ));
     if let Some(msg) = channel_lock.speak_msg {
         // the problem with dead lock is because of this^
         let speak_bytes = &channel_lock.speak_bytes;
@@ -77,8 +63,16 @@ pub unsafe extern "C" fn stream_read(
         } else {
             channel_lock.speak_msg = None;
             drop(channel_lock);
+            log(&format!("Speak complete {msg:p}."));
             helper_send_complete_msg(ak_channel, msg);
         }
+    } else {
+        log(&format!(
+            "Read audio stream {:p}. Frame size is {}. Frame type = {:?}",
+            stream,
+            (*frame).codec_frame.size,
+            (*frame).type_,
+        ));
     }
     uni::TRUE
 }

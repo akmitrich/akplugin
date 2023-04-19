@@ -104,10 +104,8 @@ impl AkChannel {
         log(&format!("Speak the text: {:?}", text));
         self.speak_bytes = self.perform_synthesize(text);
         self.have_read_bytes = 0;
-        self.log();
         unsafe {
             (*response).start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS as _;
-            //            self.engine_channel_message_send(response);
         }
         uni::FALSE
     }
@@ -129,14 +127,6 @@ impl AkChannel {
             channel_ptr
         ));
         (*(*channel_ptr).event_vtable).on_message.unwrap()(channel_ptr, msg);
-    }
-
-    pub(crate) fn log(&self) {
-        log(&format!(
-            "AkChannel on {:p}, speak_msg {:?}",
-            self.channel.as_ptr(),
-            self.speak_msg
-        ))
     }
 
     fn perform_synthesize(&self, text: &str) -> Option<Vec<u8>> {
